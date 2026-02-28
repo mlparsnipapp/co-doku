@@ -78,3 +78,13 @@ interface Hint {
 ## Test Harness
 
 `tests.ts` uses a hand-rolled assertion harness (no external test framework). Tests cover all modules: solver, generator, grader, validator, and hints. Output is a simple pass/fail count.
+
+## Known Bugs Fixed
+
+**`grader.ts` infinite loop** (fixed): Elimination-only techniques (`applyPointingPairs`, `applyBoxLineReduction`, `applyNakedPairs`, etc.) previously recomputed `allCandidates(board)` locally on every call. Since they only mutated a local map without changing `board`, the outer loop detected "progress" on every iteration and looped forever for any puzzle requiring those techniques. Fix: a single `cands` map is created once in `simulateSolve` and passed to all technique functions. A `placeValue()` helper keeps it consistent when cells are placed.
+
+**`index.ts` wrong re-export** (fixed): `HintOptions` was re-exported from `./types` but is defined in `./hints`.
+
+## Project Context
+
+This engine is **Phase 1** of a larger Sudoku multiplayer mobile app (React Native + Expo + Supabase). See `docs/sudoku-build-plan.html` for the full 5-phase plan and `docs/sudoku-architecture.html` for the target system architecture.
