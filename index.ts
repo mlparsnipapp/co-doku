@@ -15,7 +15,6 @@ export type {
   SolvingTechnique,
   ValidationResult,
   Hint,
-  HintOptions,
 } from './types';
 
 // Generator
@@ -31,6 +30,7 @@ export type { GradeResult } from './grader';
 
 // Hints
 export { getHint } from './hints';
+export type { HintOptions } from './hints';
 
 // Validator
 export { validateBoard, validateCell, verifySolution, validateGivens } from './validator';
