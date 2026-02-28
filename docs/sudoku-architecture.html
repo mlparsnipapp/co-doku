@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku Multiplayer Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap');
+
+  :root {
+    --bg: #f5f0e8;
+    --paper: #faf7f2;
+    --ink: #1a1208;
+    --muted: #8a7d6a;
+    --border: #d4c9b5;
+    --red: #c0392b;
+    --blue: #1a4f8a;
+    --green: #2a6b45;
+    --purple: #5b2d8a;
+    --amber: #b06a10;
+    --teal: #1a6b6a;
+    --grid-line: rgba(26,18,8,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 28px;
+  }
+
+  header {
+    margin-bottom: 48px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: gap;
+    gap: 12px;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  header h1 span { color: var(--red); }
+
+  header p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: right;
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 8px;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: rise 0.4s forwards;
+  }
+  .section:nth-child(1) { animation-delay: 0.05s; }
+  .section:nth-child(2) { animation-delay: 0.12s; }
+  .section:nth-child(3) { animation-delay: 0.19s; }
+  .section:nth-child(4) { animation-delay: 0.26s; }
+  .section:nth-child(5) { animation-delay: 0.33s; }
+  .section:nth-child(6) { animation-delay: 0.40s; }
+  .section:nth-child(7) { animation-delay: 0.47s; }
+
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    width: 28px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    flex: 1;
+  }
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-toggle {
+    font-size: 0.7rem;
+    color: var(--muted);
+    transition: transform 0.2s;
+  }
+  .section-toggle.open { transform: rotate(180deg); }
+
+  .cards {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-left: 40px;
+    margin-bottom: 6px;
+  }
+
+  /* CARD */
+  .card {
+    flex: 1;
+    min-width: 155px;
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    border-radius: 6px 0 0 6px;
+    background: var(--card-color, var(--border));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .card:hover, .card.active {
+    border-color: var(--card-color, var(--ink));
+    box-shadow: 3px 3px 0 var(--card-color, var(--ink));
+    transform: translate(-1px, -1px);
+  }
+  .card:hover::after, .card.active::after { opacity: 1; }
+
+  .card-icon { font-size: 1.2rem; margin-bottom: 8px; line-height: 1; }
+  .card-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    margin-bottom: 5px;
+    color: var(--card-color, var(--ink));
+  }
+  .card-desc {
+    font-size: 0.68rem;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+  .card-tags {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tag {
+    font-size: 0.58rem;
+    padding: 2px 7px;
+    border-radius: 2px;
+    background: transparent;
+    border: 1px solid var(--card-color, var(--border));
+    color: var(--card-color, var(--muted));
+    letter-spacing: 0.08em;
+  }
+
+  /* ARROW between sections */
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    margin-left: 40px;
+    color: var(--muted);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    gap: 8px;
+  }
+  .arrow::before, .arrow::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    max-width: 80px;
+  }
+
+  /* DETAIL PANEL */
+  #panel {
+    margin: 16px 0 24px;
+    background: var(--paper);
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    padding: 24px 28px;
+    display: none;
+    box-shadow: 4px 4px 0 var(--ink);
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } }
+  #panel.visible { display: block; }
+  #panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+  #panel-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+  .panel-close {
+    background: none;
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    padding: 3px 10px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .panel-close:hover { border-color: var(--ink); color: var(--ink); }
+  #panel-body {
+    font-size: 0.78rem;
+    line-height: 1.85;
+    color: var(--ink);
+  }
+  #panel-body p { margin-bottom: 10px; }
+  #panel-body ul { padding-left: 18px; margin-bottom: 10px; }
+  #panel-body li { margin-bottom: 5px; color: var(--muted); }
+  #panel-body li strong { color: var(--ink); }
+  .panel-alert {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--red);
+    background: rgba(192,57,43,0.05);
+    font-size: 0.73rem;
+    color: var(--red);
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* TECH STACK TABLE */
+  .stack-section {
+    margin-top: 40px;
+    border-top: 2px solid var(--ink);
+    padding-top: 28px;
+  }
+  .stack-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .stack-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+  }
+  .stack-table th {
+    text-align: left;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1.5px solid var(--ink);
+    padding: 6px 12px 10px;
+  }
+  .stack-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .stack-table tr:last-child td { border-bottom: none; }
+  .stack-table tr:hover td { background: rgba(26,18,8,0.03); }
+  .stack-primary { font-weight: 500; }
+  .stack-alt { color: var(--muted); font-size: 0.7rem; }
+  .stack-reason { color: var(--muted); font-size: 0.72rem; line-height: 1.5; }
+  .priority { display: inline-block; padding: 1px 7px; border-radius: 2px; font-size: 0.6rem; letter-spacing: 0.1em; font-weight: 500; }
+  .p-critical { background: rgba(192,57,43,0.12); color: var(--red); }
+  .p-high { background: rgba(26,79,138,0.1); color: var(--blue); }
+  .p-medium { background: rgba(42,107,69,0.1); color: var(--green); }
+
+  /* SUDOKU HIGHLIGHT — special callout */
+  .sudoku-callout {
+    margin: 12px 40px 4px;
+    padding: 14px 18px;
+    border: 1.5px dashed var(--red);
+    border-radius: 6px;
+    font-size: 0.73rem;
+    color: var(--red);
+    line-height: 1.6;
+  }
+  .sudoku-callout strong { font-family: 'Syne', sans-serif; display: block; margin-bottom: 4px; font-size: 0.72rem; letter-spacing: 0.1em; }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Sudoku<br><span>Multiplayer</span><br>Architecture</h1>
+    <p>Co-op + Competitive<br>Cross-Platform Mobile<br>Greenfield · 2025</p>
+  </header>
+
+  <!-- 01 CLIENT -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">01</span>
+      <span class="section-title" style="color: var(--blue)">Mobile Client</span>
+      <span class="section-line"></span>
+      <span class="section-toggle open">▲</span>
+    </div>
+    <div class="cards">
+      <div class="card" style="--card-color: var(--blue)" onclick="showDetail('client')">
+        <div class="card-icon">📱</div>
+        <div class="card-name">React Native App</div>
+        <div class="card-desc">Single codebase for iOS & Android. Native feel without Unity overhead for a puzzle game.</div>
+        <div class="card-tags"><span class="tag">Expo</span><span class="tag">TypeScript</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--blue)" onclick="showDetail('board')">
+        <div class="card-icon">🔢</div>
+        <div class="card-name">Sudoku Board UI</div>
+        <div class="card-desc">Animated grid, number input, conflict highlighting, pencil marks, and cell locking.</div>
+        <div class="card-tags"><span class="tag">Reanimated 3</span><span class="tag">Gestures</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--blue)" onclick="showDetail('multiplayer-ui')">
+        <div class="card-icon">👥</div>
+        <div class="card-name">Live Play UI</div>
+        <div class="card-desc">Opponent cursors, co-op ownership indicators, score bar, timer, and real-time events.</div>
+        <div class="card-tags"><span class="tag">Presence</span><span class="tag">Animations</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--blue)" onclick="showDetail('offline')">
+        <div class="card-icon">🔌</div>
+        <div class="card-name">Offline Mode</div>
+        <div class="card-desc">Full solo play with puzzle cache. Syncs progress when reconnected.</div>
+        <div class="card-tags"><span class="tag">SQLite</span><span class="tag">Sync Queue</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">WebSocket (game) + HTTPS (meta)</div>
+
+  <!-- 02 REALTIME — THE HEART -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">02</span>
+      <span class="section-title" style="color: var(--red)">Real-Time Game Engine ← Core of this app</span>
+      <span class="section-line"></span>
+      <span class="section-toggle open">▲</span>
+    </div>
+    <div class="sudoku-callout">
+      <strong>⚠ SUDOKU-SPECIFIC CHALLENGE</strong>
+      Every cell edit must be broadcast to all players in &lt;100ms. The server must be the <em>authority</em> on board state — clients predict locally and reconcile on server confirmation. Co-op requires cell locking (only one player edits a cell at a time). Competitive requires isolated boards with live progress visibility.
+    </div>
+    <div class="cards">
+      <div class="card" style="--card-color: var(--red)" onclick="showDetail('ws')">
+        <div class="card-icon">⚡</div>
+        <div class="card-name">WebSocket Server</div>
+        <div class="card-desc">Persistent connections per match room. Broadcasts cell edits, cursor positions, and events.</div>
+        <div class="card-tags"><span class="tag">Socket.io</span><span class="tag">&lt;100ms RTT</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--red)" onclick="showDetail('roomstate')">
+        <div class="card-icon">🏠</div>
+        <div class="card-name">Room State Manager</div>
+        <div class="card-desc">Per-match board state, player slots, turn/co-op ownership, timer, and score. Lives in Redis.</div>
+        <div class="card-tags"><span class="tag">Redis</span><span class="tag">Ephemeral</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--red)" onclick="showDetail('validator')">
+        <div class="card-icon">✅</div>
+        <div class="card-name">Move Validator</div>
+        <div class="card-desc">Server-side Sudoku rule enforcement. Rejects invalid moves, detects puzzle completion.</div>
+        <div class="card-tags"><span class="tag">Authoritative</span><span class="tag">Anti-cheat</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--red)" onclick="showDetail('modes')">
+        <div class="card-icon">🎯</div>
+        <div class="card-name">Game Mode Logic</div>
+        <div class="card-desc">Co-op: shared board, cell locking. Competitive: race mode, territory mode, scoring rules.</div>
+        <div class="card-tags"><span class="tag">Co-op</span><span class="tag">VS Mode</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">Internal service calls</div>
+
+  <!-- 03 BACKEND SERVICES -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">03</span>
+      <span class="section-title" style="color: var(--green)">Backend Services</span>
+      <span class="section-line"></span>
+      <span class="section-toggle open">▲</span>
+    </div>
+    <div class="cards">
+      <div class="card" style="--card-color: var(--green)" onclick="showDetail('puzzle-gen')">
+        <div class="card-icon">🧩</div>
+        <div class="card-name">Puzzle Generator</div>
+        <div class="card-desc">Generates valid, unique Sudoku puzzles graded by difficulty. Precomputes a daily puzzle pool.</div>
+        <div class="card-tags"><span class="tag">Difficulty AI</span><span class="tag">Daily Puzzle</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--green)" onclick="showDetail('matchmaking')">
+        <div class="card-icon">🤝</div>
+        <div class="card-name">Matchmaking</div>
+        <div class="card-desc">Skill-based match creation for ranked play. Private lobbies with invite links for friends.</div>
+        <div class="card-tags"><span class="tag">ELO Rating</span><span class="tag">Lobby Codes</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--green)" onclick="showDetail('player-svc')">
+        <div class="card-icon">👤</div>
+        <div class="card-name">Player Service</div>
+        <div class="card-desc">Accounts, stats (win rate, avg solve time, best streak), XP, unlocked themes.</div>
+        <div class="card-tags"><span class="tag">Auth</span><span class="tag">Progress</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--green)" onclick="showDetail('social')">
+        <div class="card-icon">💬</div>
+        <div class="card-name">Social Service</div>
+        <div class="card-desc">Friends list, challenge requests, emoji reactions during play, post-game recap sharing.</div>
+        <div class="card-tags"><span class="tag">Friends</span><span class="tag">Challenges</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">DB queries / cache reads</div>
+
+  <!-- 04 DATA -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">04</span>
+      <span class="section-title" style="color: var(--purple)">Data & Storage</span>
+      <span class="section-line"></span>
+      <span class="section-toggle open">▲</span>
+    </div>
+    <div class="cards">
+      <div class="card" style="--card-color: var(--purple)" onclick="showDetail('postgres')">
+        <div class="card-icon">🗄️</div>
+        <div class="card-name">PostgreSQL</div>
+        <div class="card-desc">Players, match history, puzzle library, leaderboards. Persistent source of truth.</div>
+        <div class="card-tags"><span class="tag">Supabase</span><span class="tag">Read Replicas</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--purple)" onclick="showDetail('redis')">
+        <div class="card-icon">⚡</div>
+        <div class="card-name">Redis</div>
+        <div class="card-desc">Live match board state, leaderboard sorted sets, sessions, rate limiting.</div>
+        <div class="card-tags"><span class="tag">Upstash</span><span class="tag">Pub/Sub</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--purple)" onclick="showDetail('analytics-db')">
+        <div class="card-icon">📊</div>
+        <div class="card-name">Analytics</div>
+        <div class="card-desc">Solve times, error rates by cell position, drop-off points, retention cohorts.</div>
+        <div class="card-tags"><span class="tag">Mixpanel</span><span class="tag">Firebase</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">Deploys to cloud</div>
+
+  <!-- 05 INFRA -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-num">05</span>
+      <span class="section-title" style="color: var(--amber)">Infrastructure</span>
+      <span class="section-line"></span>
+      <span class="section-toggle open">▲</span>
+    </div>
+    <div class="cards">
+      <div class="card" style="--card-color: var(--amber)" onclick="showDetail('hosting')">
+        <div class="card-icon">☁️</div>
+        <div class="card-name">Cloud Hosting</div>
+        <div class="card-desc">Start with Railway or Fly.io. WebSocket servers need sticky sessions — important for routing.</div>
+        <div class="card-tags"><span class="tag">Railway</span><span class="tag">Sticky Sessions</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--amber)" onclick="showDetail('cicd')">
+        <div class="card-icon">🔧</div>
+        <div class="card-name">CI/CD</div>
+        <div class="card-desc">Auto-deploy backend on push. EAS Build for app store submissions from CI.</div>
+        <div class="card-tags"><span class="tag">GitHub Actions</span><span class="tag">EAS</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--amber)" onclick="showDetail('push-notif')">
+        <div class="card-icon">🔔</div>
+        <div class="card-name">Push Notifications</div>
+        <div class="card-desc">Challenge invites, daily puzzle alerts, friend activity nudges. FCM + APNs.</div>
+        <div class="card-tags"><span class="tag">Expo Push</span><span class="tag">FCM/APNs</span></div>
+      </div>
+      <div class="card" style="--card-color: var(--amber)" onclick="showDetail('monitoring')">
+        <div class="card-icon">📡</div>
+        <div class="card-name">Monitoring</div>
+        <div class="card-desc">WebSocket latency, match completion rate, server errors, and crash reports.</div>
+        <div class="card-tags"><span class="tag">Sentry</span><span class="tag">Fly Metrics</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div id="panel">
+    <div id="panel-header">
+      <div id="panel-title"></div>
+      <button class="panel-close" onclick="closePanel()">close ✕</button>
+    </div>
+    <div id="panel-body"></div>
+  </div>
+
+  <!-- TECH STACK TABLE -->
+  <div class="stack-section">
+    <div class="stack-title">Recommended Tech Stack</div>
+    <table class="stack-table">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Recommended</th>
+          <th>Alternative</th>
+          <th>Priority</th>
+          <th>Why for Sudoku</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Mobile Framework</td>
+          <td class="stack-primary">React Native + Expo</td>
+          <td class="stack-alt">Flutter</td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="stack-reason">No 3D needed — RN is lighter, faster to ship, great Sudoku grid with Reanimated</td>
+        </tr>
+        <tr>
+          <td>Real-Time Layer</td>
+          <td class="stack-primary">Socket.io (Node.js)</td>
+          <td class="stack-alt">Ably / Supabase Realtime</td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="stack-reason">Rooms, namespaces, and broadcast are built-in. Easy sticky-session handling</td>
+        </tr>
+        <tr>
+          <td>Game State Store</td>
+          <td class="stack-primary">Redis (Upstash)</td>
+          <td class="stack-alt">In-process Map (single server)</td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="stack-reason">Shared state across multiple WS server instances. Pub/Sub for cross-instance broadcast</td>
+        </tr>
+        <tr>
+          <td>Database</td>
+          <td class="stack-primary">PostgreSQL (Supabase)</td>
+          <td class="stack-alt">PlanetScale</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="stack-reason">Match history, puzzle library, player stats — all relational. Supabase speeds up auth</td>
+        </tr>
+        <tr>
+          <td>API Backend</td>
+          <td class="stack-primary">Node.js + Fastify</td>
+          <td class="stack-alt">Go, Python/FastAPI</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="stack-reason">Same language as WS server, fast JSON throughput, great ecosystem</td>
+        </tr>
+        <tr>
+          <td>Auth</td>
+          <td class="stack-primary">Supabase Auth</td>
+          <td class="stack-alt">Firebase Auth, Clerk</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="stack-reason">Guest → Apple/Google login flow, JWT out of the box, free tier generous</td>
+        </tr>
+        <tr>
+          <td>Hosting (Backend)</td>
+          <td class="stack-primary">Fly.io</td>
+          <td class="stack-alt">Railway, Render</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="stack-reason">Sticky sessions for WebSockets, multi-region, low-latency game connections</td>
+        </tr>
+        <tr>
+          <td>CI + Mobile Builds</td>
+          <td class="stack-primary">GitHub Actions + EAS</td>
+          <td class="stack-alt">Bitrise</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="stack-reason">EAS Build handles code signing and App Store uploads automatically</td>
+        </tr>
+        <tr>
+          <td>Analytics</td>
+          <td class="stack-primary">Mixpanel</td>
+          <td class="stack-alt">Firebase Analytics</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="stack-reason">Funnel and retention cohort analysis critical for a puzzle game's D1/D7 retention</td>
+        </tr>
+        <tr>
+          <td>Push Notifications</td>
+          <td class="stack-primary">Expo Push + FCM/APNs</td>
+          <td class="stack-alt">OneSignal</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="stack-reason">Challenge invites and daily puzzle nudges drive re-engagement</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span>Sudoku Multiplayer Architecture · Cross-Platform · 2025</span>
+    <span>Click any component above for detail</span>
+  </footer>
+
+</div>
+
+<script>
+const details = {
+  client: {
+    title: "📱 React Native Client — Why not Unity?",
+    body: `<p>For Sudoku, <strong>Unity is overkill</strong>. You don't need a 3D engine, physics, or GPU-heavy rendering. React Native gives you:</p>
+    <ul>
+      <li><strong>Single TypeScript codebase</strong> for iOS and Android — familiar web-like development</li>
+      <li><strong>Expo</strong> for easy device builds, OTA updates (no app store re-submit for JS changes), and push notifications</li>
+      <li><strong>React Native Reanimated 3</strong> for silky 60fps grid animations, number transitions, and error shake</li>
+      <li><strong>Smaller app bundle</strong> — no game engine runtime (~5MB vs ~50MB+ for Unity)</li>
+      <li>Flutter is the main alternative — excellent performance, but Dart is a less common skill</li>
+    </ul>
+    <div class="panel-alert">If you later add 3D board effects or complex visual themes, consider a React Native + Skia (via React Native Skia) approach before jumping to Unity.</div>`
+  },
+  board: {
+    title: "🔢 Sudoku Board UI",
+    body: `<p>The board is the core interactive surface — it needs to be fast, clear, and game-feel-y.</p>
+    <ul>
+      <li><strong>9×9 grid</strong> rendered with a flat component tree (no nested FlatLists) for performance</li>
+      <li><strong>Cell states</strong>: empty, given (locked), user-filled, pencil-marked, selected, in-conflict, co-op locked by partner</li>
+      <li><strong>Pencil marks</strong>: up to 9 small digits per cell — store as a bitmask (integer 0–511)</li>
+      <li><strong>Conflict highlight</strong>: highlight row, column, and 3×3 box of selected cell. Shake animation on invalid entry</li>
+      <li><strong>Number pad</strong>: large touch targets, haptic feedback on input, erase button</li>
+      <li>Persist unsaved board state to <strong>SQLite</strong> so app background/foreground doesn't lose progress</li>
+    </ul>`
+  },
+  'multiplayer-ui': {
+    title: "👥 Live Multiplayer UI",
+    body: `<p>The UI needs to show what opponents/teammates are doing in real time without being distracting.</p>
+    <ul>
+      <li><strong>Co-op mode</strong>: show partner's selected cell with a colored border. Cell shows their avatar color while they're editing it (locked to others)</li>
+      <li><strong>Competitive mode</strong>: show opponent's completion percentage or remaining cell count as a live progress bar. Consider showing their board ghosted</li>
+      <li><strong>Emoji reactions</strong>: quick-fire emoji button during play (🎉 😬 💡) — fun, non-intrusive social layer</li>
+      <li><strong>Post-game</strong>: side-by-side board replay, solve time comparison, streak/XP gained</li>
+      <li>All live events come over WebSocket; animate arrivals smoothly (don't jump cells)</li>
+    </ul>`
+  },
+  offline: {
+    title: "🔌 Offline Mode",
+    body: `<p>Puzzle games must work offline. Players are on planes, subways, and in areas with spotty signal.</p>
+    <ul>
+      <li>Pre-download a <strong>local puzzle cache</strong> (e.g. 30–50 puzzles) on first launch or Wi-Fi</li>
+      <li>Store in <strong>SQLite via Expo SQLite</strong> — fast queries, works fully offline</li>
+      <li>Track a <strong>sync queue</strong>: completed puzzles, stats, XP earned offline. Upload on reconnect</li>
+      <li>Multiplayer modes require a connection — show clear UI state when offline</li>
+      <li>Daily puzzle can be prefetched the night before via a background task</li>
+    </ul>`
+  },
+  ws: {
+    title: "⚡ WebSocket Server — The Critical Path",
+    body: `<p>This is the most technically important piece. Every cell edit goes through here.</p>
+    <ul>
+      <li><strong>Socket.io on Node.js</strong>: rooms, namespaces, broadcast, and reconnection handling built-in</li>
+      <li>Each match gets a <strong>room ID</strong>. Players join the room. Events are broadcast within the room only</li>
+      <li><strong>Events to handle</strong>: cell_edit, pencil_mark, cursor_move, cell_lock (co-op), player_joined, player_left, puzzle_complete, timer_tick</li>
+      <li>Client sends optimistic update, server validates, confirms or rejects. Client reconciles</li>
+      <li><strong>Latency budget</strong>: target &lt;100ms round-trip. Most Sudoku moves aren't twitch-speed, so this is achievable globally</li>
+    </ul>
+    <div class="panel-alert">Run the WebSocket server on Fly.io with sticky sessions enabled. Without sticky sessions, a load balancer can route a player's reconnect to a different server instance that doesn't have their socket — breaking the connection.</div>`
+  },
+  roomstate: {
+    title: "🏠 Room State Manager",
+    body: `<p>Each active match has its full state stored in Redis — not the database — for speed.</p>
+    <ul>
+      <li><strong>Room key</strong>: <code>match:{id}</code> → serialized JSON with board state, player slots, timer, scores</li>
+      <li><strong>Board state</strong>: 81-cell array with current values + pencil marks + which player owns each cell (co-op)</li>
+      <li><strong>TTL</strong>: rooms auto-expire after e.g. 2 hours of inactivity — prevents Redis bloat</li>
+      <li>On match completion, <strong>persist final state to PostgreSQL</strong> for history and stats</li>
+      <li>For multiple WebSocket server instances, use <strong>Redis Pub/Sub</strong> as the message bus between them</li>
+    </ul>`
+  },
+  validator: {
+    title: "✅ Move Validator — Server-Side Authority",
+    body: `<p>Never trust the client for game logic. The server validates every move.</p>
+    <ul>
+      <li>On receiving a <code>cell_edit</code>, check: is the cell a given (locked)? Is another player editing it (co-op lock)?</li>
+      <li><strong>Sudoku rule check</strong>: does this digit conflict with the row, column, or box? (Note: only validate against the solution — don't reveal the solution to clients)</li>
+      <li>Track <strong>error count per player</strong> for scoring purposes</li>
+      <li><strong>Completion detection</strong>: check if all 81 cells are correctly filled after each valid move</li>
+      <li>Store the <strong>full solution</strong> server-side only — never send it to the client until game over</li>
+    </ul>`
+  },
+  modes: {
+    title: "🎯 Game Mode Logic",
+    body: `<p>Co-op and competitive have fundamentally different rule sets.</p>
+    <ul>
+      <li><strong>Co-op mode</strong>: players share one board. Cell locking prevents collisions (only one player edits at a time). Score is shared. Game ends when board is solved. Optional: cells assigned by region</li>
+      <li><strong>Speed Race (competitive)</strong>: players get the same puzzle on separate boards. First to complete wins. See opponent's progress %</li>
+      <li><strong>Territory mode (competitive)</strong>: each correctly filled cell "belongs" to the player who filled it. Most cells at completion wins. Creates strategic racing</li>
+      <li><strong>Turn-based async</strong>: lower-latency requirement — each player fills N cells per turn. Good for async friend games</li>
+      <li>Start with 2 modes (co-op + speed race) and validate demand before building more</li>
+    </ul>`
+  },
+  'puzzle-gen': {
+    title: "🧩 Puzzle Generator",
+    body: `<p>Good puzzles are the product. Don't serve random puzzles — curate them.</p>
+    <ul>
+      <li><strong>Generation algorithm</strong>: backtracking solver + constraint propagation. Many open-source implementations exist</li>
+      <li><strong>Difficulty grading</strong>: count required logical techniques (naked single, hidden pair, X-wing, etc.). Don't just count givens</li>
+      <li><strong>Puzzle pool</strong>: pre-generate thousands offline, store in DB with difficulty tag. Don't generate on-demand</li>
+      <li><strong>Daily puzzle</strong>: one canonical puzzle per day, same for all players. Enables daily leaderboard + streaks</li>
+      <li><strong>Uniqueness check</strong>: every puzzle must have exactly one solution</li>
+      <li>For co-op, use slightly harder puzzles — collaboration should feel rewarding</li>
+    </ul>`
+  },
+  matchmaking: {
+    title: "🤝 Matchmaking Service",
+    body: `<p>Fast matchmaking is important — waiting more than 10s feels broken for casual games.</p>
+    <ul>
+      <li><strong>Skill rating</strong>: simple ELO works well. Track separately for co-op and competitive</li>
+      <li><strong>Matching strategy</strong>: match by rating ± window that expands over time. After 10s, match with anyone</li>
+      <li><strong>Private lobbies</strong>: generate a short code (e.g. 6 chars). Share via native share sheet. No rating check for private games</li>
+      <li><strong>Queue state in Redis</strong>: fast enqueue/dequeue with atomic operations</li>
+      <li>Difficulty selection before matchmaking — don't put a beginner against an expert on an expert puzzle</li>
+    </ul>`
+  },
+  'player-svc': {
+    title: "👤 Player Service",
+    body: `<p>Track everything that makes a player feel progression and invested.</p>
+    <ul>
+      <li><strong>Stats</strong>: solve time per difficulty, win/loss ratio, best streak, total games, avg errors per game</li>
+      <li><strong>XP system</strong>: reward speed, accuracy, and winning. Level up unlocks cosmetics (themes, number styles)</li>
+      <li><strong>Guest accounts</strong>: let players play immediately. Prompt account creation before their progress could be lost</li>
+      <li><strong>Social login</strong>: Sign in with Apple (required for iOS) + Google</li>
+    </ul>`
+  },
+  social: {
+    title: "💬 Social Service",
+    body: `<p>Social hooks are what keep puzzle games alive long-term.</p>
+    <ul>
+      <li><strong>Friends list</strong>: add by username or phone contacts. See friends' recent solve times</li>
+      <li><strong>Challenge system</strong>: "I solved this puzzle in 4m12s — can you beat it?" → deep link to same puzzle</li>
+      <li><strong>In-game reactions</strong>: emoji burst during live play (no typing, no distraction)</li>
+      <li><strong>Post-game sharing</strong>: shareable card showing solve time, accuracy, and mode — great for organic growth</li>
+    </ul>`
+  },
+  postgres: {
+    title: "🗄️ PostgreSQL via Supabase",
+    body: `<p>Relational database for everything persistent.</p>
+    <ul>
+      <li><strong>Tables</strong>: users, puzzles, matches, match_players, leaderboard_entries, friendships</li>
+      <li><strong>Supabase</strong>: managed Postgres + auth + Row Level Security built in. Generous free tier for early stage</li>
+      <li><strong>Match history</strong>: store final board state, solve time, player scores, errors for replay/stats</li>
+      <li>Use <strong>database migrations</strong> from day one (e.g. Flyway or Supabase CLI)</li>
+    </ul>`
+  },
+  redis: {
+    title: "⚡ Redis — Live State",
+    body: `<p>Redis is what makes multiplayer feel instant.</p>
+    <ul>
+      <li><strong>Match rooms</strong>: board state, player cursors, lock state — all in Redis during a live game</li>
+      <li><strong>Leaderboards</strong>: Redis sorted sets for global and daily leaderboards. O(log N) rank queries</li>
+      <li><strong>Sessions</strong>: player auth tokens with expiry</li>
+      <li><strong>Pub/Sub</strong>: cross-server WebSocket message broadcast (needed when you have 2+ WS servers)</li>
+      <li><strong>Upstash</strong>: serverless Redis, pay-per-request, free tier available. Perfect for early stage</li>
+    </ul>`
+  },
+  'analytics-db': {
+    title: "📊 Analytics Pipeline",
+    body: `<p>Puzzle game analytics are specific and valuable. Track the right things.</p>
+    <ul>
+      <li><strong>Hardest cells</strong>: which cell positions cause the most errors? Informs difficulty calibration</li>
+      <li><strong>Drop-off</strong>: at what point in a match do players abandon? Guides UX improvements</li>
+      <li><strong>Mode popularity</strong>: which modes are played most? Which retain players longer?</li>
+      <li><strong>Funnel</strong>: app open → match start → match complete → next match. Every drop is a problem</li>
+      <li>Use <strong>Mixpanel</strong> for rich cohort analysis. Keep Firebase for crash and performance monitoring</li>
+    </ul>`
+  },
+  hosting: {
+    title: "☁️ Hosting — Fly.io for WebSockets",
+    body: `<p>WebSocket hosting has a specific requirement most platforms ignore: sticky sessions.</p>
+    <ul>
+      <li><strong>Fly.io</strong> supports sticky sessions natively and has multi-region deployment for low latency</li>
+      <li>Start with <strong>2 regions</strong> (e.g. US East + EU West). Add more when you have players there</li>
+      <li>WebSocket server: 1–2 instances initially. Scale horizontally via Redis Pub/Sub as player count grows</li>
+      <li>REST API can live on <strong>Railway or Render</strong> if simpler — doesn't need sticky sessions</li>
+      <li>Budget: ~$20–50/month at early stage. Very manageable</li>
+    </ul>`
+  },
+  cicd: {
+    title: "🔧 CI/CD Pipeline",
+    body: `<p>Automate from day one — it pays off immediately.</p>
+    <ul>
+      <li><strong>Backend</strong>: GitHub Actions → run tests → deploy to Fly.io on merge to main</li>
+      <li><strong>Mobile</strong>: EAS Build handles iOS/Android compilation in the cloud. No Mac required for Android builds</li>
+      <li><strong>OTA updates</strong>: Expo EAS Update pushes JS-only changes to users instantly — no app store wait</li>
+      <li>Use <strong>separate environments</strong>: dev (local) → staging (internal testers) → prod</li>
+    </ul>`
+  },
+  'push-notif': {
+    title: "🔔 Push Notifications",
+    body: `<p>Timely, relevant pushes are a major retention driver for puzzle games.</p>
+    <ul>
+      <li><strong>Daily puzzle alert</strong>: "Today's puzzle is ready 🧩" — drives habit formation and streaks</li>
+      <li><strong>Challenge invites</strong>: "Alex challenged you to a Speed Race" — deep link straight into match</li>
+      <li><strong>Friend activity</strong>: "Maria solved today's hard puzzle in 3m42s" — social proof + competition</li>
+      <li>Use <strong>Expo Push Notifications</strong> which abstracts FCM (Android) and APNs (iOS) into one API</li>
+      <li>Always get explicit permission — and ask at the right moment (after first fun match, not on app open)</li>
+    </ul>`
+  },
+  monitoring: {
+    title: "📡 Monitoring",
+    body: `<p>Know what's broken before players notice.</p>
+    <ul>
+      <li><strong>Sentry</strong>: crash reporting for both React Native client and Node.js backend. Free tier is enough to start</li>
+      <li><strong>WebSocket health</strong>: track connection counts, room creation rate, average match duration, disconnect rate</li>
+      <li><strong>Key SLO</strong>: cell edit round-trip &lt;150ms p95. Alert if this spikes</li>
+      <li><strong>Fly.io metrics</strong>: built-in CPU, memory, and network graphs per instance</li>
+      <li>Set up a simple <strong>status page</strong> (statuspage.io free tier) — players trust you more when you communicate outages</li>
+    </ul>`
+  }
+};
+
+function showDetail(key) {
+  const d = details[key];
+  if (!d) return;
+  document.getElementById('panel-title').innerHTML = d.title;
+  document.getElementById('panel-body').innerHTML = d.body;
+  const panel = document.getElementById('panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('visible');
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+}
+
+function toggleSection(header) {
+  const cards = header.nextElementSibling;
+  const isCallout = cards && cards.classList.contains('sudoku-callout');
+  const realCards = isCallout ? cards.nextElementSibling : cards;
+  const toggle = header.querySelector('.section-toggle');
+  const isOpen = toggle.classList.contains('open');
+
+  if (isOpen) {
+    if (isCallout) cards.style.display = 'none';
+    if (realCards) realCards.style.display = 'none';
+    toggle.classList.remove('open');
+    toggle.textContent = '▼';
+  } else {
+    if (isCallout) cards.style.display = '';
+    if (realCards) realCards.style.display = '';
+    toggle.classList.add('open');
+    toggle.textContent = '▲';
+  }
+}
+</script>
+</body>
+</html>

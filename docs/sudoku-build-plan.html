@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku Game — Build Plan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --surface2: #1e2535;
+    --border: #2a3348;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --faint: #1e2535;
+
+    --p1: #6ee7b7;   /* emerald — Phase 1 */
+    --p2: #60a5fa;   /* blue — Phase 2 */
+    --p3: #f59e0b;   /* amber — Phase 3 */
+    --p4: #c084fc;   /* purple — Phase 4 */
+    --p5: #f87171;   /* red — Phase 5 */
+
+    --done-bg: rgba(110,231,183,0.07);
+    --done-border: rgba(110,231,183,0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  /* HEADER */
+  header {
+    margin-bottom: 48px;
+  }
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(1.3rem, 3vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  h1 em { color: var(--p1); font-style: normal; }
+
+  .progress-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    min-width: 200px;
+  }
+  .progress-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .progress-bar-wrap {
+    background: var(--border);
+    border-radius: 100px;
+    height: 6px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%;
+    border-radius: 100px;
+    background: linear-gradient(90deg, var(--p1), var(--p2));
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+  #progress-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text);
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .meta-pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .meta-pill span { color: var(--text); }
+
+  /* PHASE */
+  .phase {
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .phase.complete { border-color: var(--done-border); background: var(--done-bg); }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .phase-header:hover { background: rgba(255,255,255,0.02); }
+
+  .phase-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    opacity: 0.5;
+    min-width: 28px;
+  }
+  .phase-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .phase-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    flex: 1;
+  }
+  .phase-timeline {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .phase-chevron {
+    color: var(--muted);
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+    margin-left: 8px;
+  }
+  .phase-chevron.open { transform: rotate(180deg); }
+
+  .phase-body {
+    display: none;
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .phase-body.open { display: block; }
+
+  .phase-summary {
+    font-size: 0.83rem;
+    color: var(--muted);
+    line-height: 1.7;
+    padding: 14px 0 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+
+  /* MILESTONE */
+  .milestone-group-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    margin-top: 18px;
+  }
+
+  .milestone {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .milestone:hover { background: var(--surface2); }
+  .milestone.checked {
+    background: rgba(110,231,183,0.05);
+    border-color: rgba(110,231,183,0.15);
+  }
+
+  .check-box {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-size: 0.65rem;
+  }
+  .milestone.checked .check-box {
+    background: var(--p1);
+    border-color: var(--p1);
+    color: #0f1117;
+  }
+
+  .milestone-content { flex: 1; }
+  .milestone-title {
+    font-weight: 500;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-bottom: 3px;
+  }
+  .milestone.checked .milestone-title {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .milestone-detail {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .milestone-tag {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.58rem;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.05em;
+  }
+
+  /* SHIP CRITERION */
+  .ship-box {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px dashed;
+    font-size: 0.8rem;
+    line-height: 1.65;
+  }
+  .ship-box strong {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* PHASE COMPLETION BADGE */
+  .phase-complete-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    padding: 2px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.08em;
+  }
+
+  /* KEY DECISIONS */
+  .decisions {
+    margin-top: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .decisions h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .decision {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+  }
+  .decision:last-child { border-bottom: none; }
+  .decision-phase {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    white-space: nowrap;
+    padding: 2px 8px;
+    border-radius: 4px;
+    height: fit-content;
+    margin-top: 2px;
+  }
+  .decision-text { line-height: 1.65; color: var(--muted); }
+  .decision-text strong { color: var(--text); }
+
+  footer {
+    margin-top: 48px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>Sudoku Multiplayer<br><em>Build Plan</em></h1>
+        <div class="meta-row" style="margin-top: 12px;">
+          <span class="meta-pill">Team: <span>Solo dev</span></span>
+          <span class="meta-pill">Stack: <span>RN + Expo + Supabase</span></span>
+          <span class="meta-pill">Total: <span>~7 months to v1.0</span></span>
+        </div>
+      </div>
+      <div class="progress-box">
+        <div class="progress-label">Overall Progress</div>
+        <div class="progress-bar-wrap"><div id="progress-bar"></div></div>
+        <div id="progress-text">0 / 0 tasks complete</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PHASE 1 -->
+  <div class="phase" id="phase-1">
+    <div class="phase-header" onclick="togglePhase(1)">
+      <span class="phase-num">01</span>
+      <div class="phase-dot" style="background: var(--p1)"></div>
+      <span class="phase-name" style="color: var(--p1)">Core Engine & Solo Play</span>
+      <span class="phase-timeline">Weeks 1–4</span>
+      <span class="phase-chevron open" id="chevron-1">▲</span>
+    </div>
+    <div class="phase-body open" id="body-1">
+      <div class="phase-summary">
+        Build the Sudoku brain before touching any UI. A bulletproof engine and a fun solo experience is the foundation everything else rests on. Don't touch networking until this phase is solid.
+      </div>
+
+      <div class="milestone-group-label">Sudoku Engine (pure logic, no UI)</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Puzzle generator <span class="milestone-tag" style="background: rgba(110,231,183,0.1); color: var(--p1)">critical</span></div>
+          <div class="milestone-detail">Backtracking solver + constraint propagation. Generates valid 9×9 puzzles with exactly one solution. Test with 10,000 generated puzzles — all must be unique-solution verified.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Difficulty grader</div>
+          <div class="milestone-detail">Score puzzles by required techniques: naked singles (easy), hidden pairs (medium), X-wing / swordfish (hard/expert). Don't just count givens — technique depth is what difficulty actually means.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Hint engine</div>
+          <div class="milestone-detail">Given a board state, identify the next logical deduction a human would make. Returns cell + technique explanation. Powers in-game hints without giving away the answer.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Puzzle library seeding</div>
+          <div class="milestone-detail">Pre-generate 5,000+ puzzles per difficulty tier, store in Supabase. Include daily puzzle slots (one per day, 1 year out). Never generate on-demand in production.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">React Native App Shell</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Expo project setup</div>
+          <div class="milestone-detail">Init with Expo SDK, TypeScript, ESLint, Prettier. Set up EAS Build profiles (dev / preview / prod). Configure Sentry from day one — crashes on a real device will happen.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Sudoku board component <span class="milestone-tag" style="background: rgba(110,231,183,0.1); color: var(--p1)">critical</span></div>
+          <div class="milestone-detail">9×9 grid with Reanimated 3. Cell states: empty, given (locked), filled, pencil-marked, selected, conflicting. Number pad with haptics. Conflict detection highlights row/col/box. Error shake animation.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Game session logic</div>
+          <div class="milestone-detail">Timer, error counter, undo stack, auto-save to SQLite every move. Restore in-progress game on app relaunch. Completion detection + solve time recording.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Offline puzzle cache</div>
+          <div class="milestone-detail">Download 50 puzzles per difficulty on first Wi-Fi connection. Store in SQLite. App works 100% offline for solo play.</div>
+        </div>
+      </div>
+
+      <div class="ship-box" style="border-color: var(--p1); color: var(--p1)">
+        <strong>✓ Phase 1 Exit Criterion</strong>
+        You can install the app on your phone, pick a difficulty, solve a Sudoku puzzle without internet access, see your solve time, and come back tomorrow and the in-progress game is still there. The board feels crisp and game-feel-y.
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="phase" id="phase-2">
+    <div class="phase-header" onclick="togglePhase(2)">
+      <span class="phase-num">02</span>
+      <div class="phase-dot" style="background: var(--p2)"></div>
+      <span class="phase-name" style="color: var(--p2)">Accounts, Daily Puzzle & Retention Loop</span>
+      <span class="phase-timeline">Weeks 5–8</span>
+      <span class="phase-chevron" id="chevron-2">▲</span>
+    </div>
+    <div class="phase-body" id="body-2">
+      <div class="phase-summary">
+        Before any multiplayer, establish the core retention loop: a reason to open the app daily, a sense of progression, and an identity (account). This phase makes the game worth playing alone — which is the baseline for multiplayer mattering.
+      </div>
+
+      <div class="milestone-group-label">Auth & Accounts</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Supabase Auth integration <span class="milestone-tag" style="background: rgba(96,165,250,0.1); color: var(--p2)">critical</span></div>
+          <div class="milestone-detail">Guest accounts on first launch — no sign-up friction. Apple Sign In (required for iOS App Store). Google Sign In. Account linking: guest → authenticated without losing progress.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Player profile & stats</div>
+          <div class="milestone-detail">Store per-difficulty solve times, win streak, total puzzles completed, best time, average errors. Display on profile screen. Sync on reconnect for offline-played games.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">Daily Puzzle System</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Daily puzzle + streak <span class="milestone-tag" style="background: rgba(96,165,250,0.1); color: var(--p2)">critical</span></div>
+          <div class="milestone-detail">One canonical puzzle per UTC day. Same puzzle for all players. Streak counter (breaks if you miss a day). Streak is the single most powerful retention mechanic in puzzle games.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Daily leaderboard</div>
+          <div class="milestone-detail">Global ranking by solve time for today's daily puzzle. Friends-only filter. Resets each day. Powered by Supabase + Redis sorted set. First multiplayer-adjacent feature — low complexity, high engagement.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Push notifications</div>
+          <div class="milestone-detail">Daily puzzle reminder (user-configured time). "Your streak is at risk" nudge if not played by evening. Expo Push handles FCM + APNs. Ask for permission after the player completes their first daily — not on onboarding.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">Polish</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">XP & leveling</div>
+          <div class="milestone-detail">Earn XP per puzzle (more for harder difficulty, faster time, fewer errors). Level up unlocks cosmetic themes (board color, number style). No pay-to-win — cosmetics only.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Shareable result card</div>
+          <div class="milestone-detail">Post-solve screen shows time, accuracy, difficulty. One-tap native share sheet exports a card image. Organic acquisition channel — don't underestimate this.</div>
+        </div>
+      </div>
+
+      <div class="ship-box" style="border-color: var(--p2); color: var(--p2)">
+        <strong>✓ Phase 2 Exit Criterion</strong>
+        You have a reason to open the app every day. You can sign in, your stats follow you across devices, and the daily leaderboard shows you where you rank. Give this build to 10 people and watch if they come back the next day.
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3 -->
+  <div class="phase" id="phase-3">
+    <div class="phase-header" onclick="togglePhase(3)">
+      <span class="phase-num">03</span>
+      <div class="phase-dot" style="background: var(--p3)"></div>
+      <span class="phase-name" style="color: var(--p3)">Async Multiplayer — Challenge a Friend</span>
+      <span class="phase-timeline">Weeks 9–13</span>
+      <span class="phase-chevron" id="chevron-3">▲</span>
+    </div>
+    <div class="phase-body" id="body-3">
+      <div class="phase-summary">
+        First true multiplayer — but with zero real-time complexity. Async challenges mean low latency requirements, no WebSocket server, and a much smaller blast radius if something goes wrong. Validates the social mechanic before you invest in live infrastructure.
+      </div>
+
+      <div class="milestone-group-label">Friends System</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Add friends by username</div>
+          <div class="milestone-detail">Search by unique username. Send/accept/decline friend requests. Friends list with recent activity (last online, current streak). Store in Supabase with real-time subscription for accept events.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">Challenge System</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Send a puzzle challenge <span class="milestone-tag" style="background: rgba(245,158,11,0.1); color: var(--p3)">critical</span></div>
+          <div class="milestone-detail">"I solved this in 4m12s — beat it?" Challenger picks a puzzle (or the daily). Creates a challenge record in Supabase. Generates a deep link. Sends push notification to friend.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Accept challenge & play</div>
+          <div class="milestone-detail">Deep link opens the exact puzzle. Challenger's solve time shown as ghost target (e.g. subtle timer comparison bar). Challengee solves it. Result is recorded and compared.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Challenge result & notification</div>
+          <div class="milestone-detail">Winner determined by time. Both players notified with result. Optional trash-talk reaction (emoji only). Challenge history on profile. Push notification with result to challenger.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">Turn-Based Mode (Optional but Recommended)</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Turn-based co-op solve</div>
+          <div class="milestone-detail">Two players share a board, alternate filling cells (e.g. 5 cells per turn). Each turn has a time limit (e.g. 2 hours). No WebSocket needed — Supabase Realtime subscriptions handle state updates. Great low-pressure social mode.</div>
+        </div>
+      </div>
+
+      <div class="ship-box" style="border-color: var(--p3); color: var(--p3)">
+        <strong>✓ Phase 3 Exit Criterion</strong>
+        You can challenge a friend to a puzzle, they get a push notification, they play it on their phone, and you both see who won. No WebSocket server exists yet — and that's fine.
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 4 -->
+  <div class="phase" id="phase-4">
+    <div class="phase-header" onclick="togglePhase(4)">
+      <span class="phase-num">04</span>
+      <div class="phase-dot" style="background: var(--p4)"></div>
+      <span class="phase-name" style="color: var(--p4)">Live Multiplayer — Co-op Mode</span>
+      <span class="phase-timeline">Weeks 14–20</span>
+      <span class="phase-chevron" id="chevron-4">▲</span>
+    </div>
+    <div class="phase-body" id="body-4">
+      <div class="phase-summary">
+        Now you earn the WebSocket complexity. Co-op is the right first live mode — it's collaborative (lower emotional stakes than competitive), easier to debug (shared board means both players should see identical state), and teaches you the real-time infrastructure you'll reuse for competitive.
+      </div>
+
+      <div class="milestone-group-label">WebSocket Infrastructure</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Socket.io server on Fly.io <span class="milestone-tag" style="background: rgba(192,132,252,0.1); color: var(--p4)">critical</span></div>
+          <div class="milestone-detail">Node.js + Socket.io. Deploy to Fly.io with sticky sessions enabled. Single region to start (pick closest to most expected users). Redis (Upstash) adapter for Socket.io for multi-instance support from day one.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Room lifecycle management</div>
+          <div class="milestone-detail">Create room → players join → game starts → game ends → room archived. Store live state in Redis (board + player slots + timer). Persist final state to Postgres on completion. Handle disconnects gracefully (30s reconnect window).</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Server-authoritative move validator</div>
+          <div class="milestone-detail">Server holds the solution. Client sends proposed cell value. Server checks: Is it a given cell? Is it locked by co-op partner? Is it correct? Responds with accept/reject. Client shows optimistic update, reconciles on response.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">Co-op Game Logic</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Cell locking system <span class="milestone-tag" style="background: rgba(192,132,252,0.1); color: var(--p4)">critical</span></div>
+          <div class="milestone-detail">When player A selects a cell, it's locked for player B. Lock shown as colored border with A's avatar color. Lock released on deselect, move, or 5s timeout. Prevents edit conflicts — the core co-op challenge.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Live cursor broadcast</div>
+          <div class="milestone-detail">Each player's selected cell is broadcast to all room members in real time. Throttle to ~10 events/sec per player. Show partner cursor with color indicator. Animate cell selection changes smoothly.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Emoji reaction system</div>
+          <div class="milestone-detail">4–6 quick emoji buttons (🎉 💡 😬 🔥 👍 ❓). Tap sends an emoji burst animation over the board. No text chat — keeps focus on the puzzle and avoids moderation headaches.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Lobby & private room invite</div>
+          <div class="milestone-detail">Create private room → 6-char invite code → share via native share sheet. Friend taps link → joins lobby → both ready → game starts. No matchmaking needed for co-op — it's always friends.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Post-game recap screen</div>
+          <div class="milestone-detail">Solve time, cells each player filled, error count, streak maintained. Shareable card. "Play again" creates new room with same players instantly.</div>
+        </div>
+      </div>
+
+      <div class="ship-box" style="border-color: var(--p4); color: var(--p4)">
+        <strong>✓ Phase 4 Exit Criterion</strong>
+        Two people on different phones can create a room, join via invite link, solve a Sudoku together in real time with cell locking working correctly, and see a results screen when done. Latency is under 150ms for both players.
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 5 -->
+  <div class="phase" id="phase-5">
+    <div class="phase-header" onclick="togglePhase(5)">
+      <span class="phase-num">05</span>
+      <div class="phase-dot" style="background: var(--p5)"></div>
+      <span class="phase-name" style="color: var(--p5)">Live Competitive & App Store Launch</span>
+      <span class="phase-timeline">Weeks 21–28</span>
+      <span class="phase-chevron" id="chevron-5">▲</span>
+    </div>
+    <div class="phase-body" id="body-5">
+      <div class="phase-summary">
+        Layer competitive modes on top of the co-op infrastructure — most of the real-time plumbing is already built. Then harden, polish, and ship to the App Store and Play Store.
+      </div>
+
+      <div class="milestone-group-label">Competitive Modes</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Speed Race mode <span class="milestone-tag" style="background: rgba(248,113,113,0.1); color: var(--p5)">critical</span></div>
+          <div class="milestone-detail">Same puzzle, isolated boards, first to complete wins. Live progress bar shows opponent's completion %. Reuses room infrastructure from co-op — different event handlers, same WebSocket plumbing.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Territory mode</div>
+          <div class="milestone-detail">Shared board, but each correct cell is "claimed" by the player who fills it. Most cells at completion wins. Adds strategic element — do you rush cells or pick off the hard ones?</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">ELO matchmaking</div>
+          <div class="milestone-detail">Rated queue for competitive. Simple ELO: win → +K points, lose → -K points. Rating window expands after 10s of no match. Separate rating per mode. Show rating on profile and post-game.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Ranked seasons</div>
+          <div class="milestone-detail">8-week seasons with ranked tiers (Bronze → Diamond). Season-end rewards (cosmetic themes). Leaderboard resets each season. Creates recurring engagement spikes.</div>
+        </div>
+      </div>
+
+      <div class="milestone-group-label">Launch Readiness</div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">App Store & Play Store submission</div>
+          <div class="milestone-detail">Screenshots, app preview video, store description, privacy policy, support URL. Age rating (4+). EAS Submit handles the upload. Allow 1–2 weeks for review, especially first submission.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Load testing</div>
+          <div class="milestone-detail">Simulate 100+ concurrent matches. Check Redis memory, WS server CPU, and Postgres connection pool under load. Fix before launch, not after. k6 is excellent for this.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Anti-cheat hardening</div>
+          <div class="milestone-detail">Rate-limit cell edits per second (no bot can fill cells instantly). Flag anomalous solve times. Server never sends the full solution to the client. Log and review outlier completions.</div>
+        </div>
+      </div>
+      <div class="milestone" onclick="toggleCheck(this)">
+        <div class="check-box"></div>
+        <div class="milestone-content">
+          <div class="milestone-title">Soft launch (limited region)</div>
+          <div class="milestone-detail">Launch in a smaller English-speaking market first (e.g. Canada or Australia). Same store quality, real users, lower blast radius for issues. Run for 2–4 weeks, fix issues, then global.</div>
+        </div>
+      </div>
+
+      <div class="ship-box" style="border-color: var(--p5); color: var(--p5)">
+        <strong>✓ Phase 5 Exit Criterion — v1.0</strong>
+        The app is live on both stores. A stranger can download it, play a solo game, do the daily puzzle, challenge a friend, and join a live competitive match — all in one session. You have monitoring showing the game is healthy.
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY DECISIONS -->
+  <div class="decisions">
+    <h2>// Key Architectural Decisions by Phase</h2>
+    <div class="decision">
+      <span class="decision-phase" style="background: rgba(110,231,183,0.08); color: var(--p1)">Phase 1</span>
+      <div class="decision-text"><strong>Write the Sudoku engine as a standalone TypeScript module.</strong> Zero React Native dependencies. This makes it testable in Node.js (Jest), reusable on a future web version, and debuggable without a simulator.</div>
+    </div>
+    <div class="decision">
+      <span class="decision-phase" style="background: rgba(96,165,250,0.08); color: var(--p2)">Phase 2</span>
+      <div class="decision-text"><strong>Use Supabase for everything until you hit a wall.</strong> Auth, database, storage, and Realtime in one platform. One dashboard, one bill. You won't hit the limits until tens of thousands of users.</div>
+    </div>
+    <div class="decision">
+      <span class="decision-phase" style="background: rgba(245,158,11,0.08); color: var(--p3)">Phase 3</span>
+      <div class="decision-text"><strong>Validate the social loop before building live infrastructure.</strong> If nobody shares challenges or challenges friends, the live modes will also be empty. Phase 3 is your market test for the social layer at zero infra cost.</div>
+    </div>
+    <div class="decision">
+      <span class="decision-phase" style="background: rgba(192,132,252,0.08); color: var(--p4)">Phase 4</span>
+      <div class="decision-text"><strong>Add Redis Socket.io adapter from the first WS server deploy,</strong> not when you need to scale. Retrofitting it later requires downtime. With Upstash Redis, it costs essentially nothing at low scale.</div>
+    </div>
+    <div class="decision">
+      <span class="decision-phase" style="background: rgba(248,113,113,0.08); color: var(--p5)">Phase 5</span>
+      <div class="decision-text"><strong>Soft launch in one region before going global.</strong> App store reviews are permanent. A crash-heavy v1.0 rating of 2.1 stars follows you forever. A slow careful launch lets you fix issues while the player base is still small.</div>
+    </div>
+  </div>
+
+  <footer style="margin-top: 40px;">
+    Sudoku Multiplayer · Solo Dev Build Plan · ~28 weeks to v1.0 · Click tasks to track progress
+  </footer>
+
+</div>
+
+<script>
+  // Toggle phase open/close
+  function togglePhase(n) {
+    const body = document.getElementById('body-' + n);
+    const chevron = document.getElementById('chevron-' + n);
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+  }
+
+  // Toggle milestone check
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+    const box = el.querySelector('.check-box');
+    box.textContent = el.classList.contains('checked') ? '✓' : '';
+    updateProgress();
+    updatePhaseCompletion();
+  }
+
+  function updateProgress() {
+    const all = document.querySelectorAll('.milestone');
+    const done = document.querySelectorAll('.milestone.checked');
+    const pct = all.length ? Math.round((done.length / all.length) * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = done.length + ' / ' + all.length + ' tasks complete';
+  }
+
+  function updatePhaseCompletion() {
+    for (let i = 1; i <= 5; i++) {
+      const phase = document.getElementById('phase-' + i);
+      const all = phase.querySelectorAll('.milestone');
+      const done = phase.querySelectorAll('.milestone.checked');
+      phase.classList.toggle('complete', all.length > 0 && done.length === all.length);
+    }
+  }
+
+  // Init
+  updateProgress();
+
+  // Open first phase by default
+  document.getElementById('body-1').classList.add('open');
+  document.getElementById('chevron-1').classList.add('open');
+  document.querySelectorAll('.phase-body:not(#body-1)').forEach(b => b.classList.remove('open'));
+</script>
+</body>
+</html>
