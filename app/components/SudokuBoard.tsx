@@ -242,25 +242,31 @@ export default function SudokuBoard({
         styles.board,
         {
           width: cellSize * 9,
-          height: cellSize * 9,
           borderWidth: 2,
           borderColor: COLORS.thickBorder,
         },
       ]}
     >
-      {board.map((value, index) => (
-        <Cell
-          key={index}
-          index={index}
-          value={value}
-          isGiven={givens[index]}
-          isConflict={conflictSet.has(index)}
-          isSelected={selectedCell === index}
-          isHighlighted={highlightedSet.has(index)}
-          pencilSet={pencilMarks[index]}
-          onPress={handleCellPress}
-          cellSize={cellSize}
-        />
+      {Array.from({ length: 9 }, (_, rowIdx) => (
+        <View key={rowIdx} style={styles.row}>
+          {Array.from({ length: 9 }, (_, colIdx) => {
+            const index = rowIdx * 9 + colIdx;
+            return (
+              <Cell
+                key={index}
+                index={index}
+                value={board[index]}
+                isGiven={givens[index]}
+                isConflict={conflictSet.has(index)}
+                isSelected={selectedCell === index}
+                isHighlighted={highlightedSet.has(index)}
+                pencilSet={pencilMarks[index]}
+                onPress={handleCellPress}
+                cellSize={cellSize}
+              />
+            );
+          })}
+        </View>
       ))}
     </View>
   );
@@ -268,9 +274,11 @@ export default function SudokuBoard({
 
 const styles = StyleSheet.create({
   board: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     overflow: 'hidden',
     borderRadius: 4,
+  },
+  row: {
+    flexDirection: 'row',
   },
 });
