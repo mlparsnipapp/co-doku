@@ -4,16 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`sudoku-engine` is a standalone TypeScript Sudoku puzzle library with zero runtime dependencies. It provides puzzle generation, solving, grading, validation, and a hint engine.
+This is a monorepo for the **co-doku** Sudoku multiplayer app.
+
+- **Root** — `sudoku-engine`: standalone TypeScript library (zero runtime deps) for puzzle generation, solving, grading, validation, and hints.
+- **`app/`** — React Native mobile app (Expo 51, Expo Router 3, Supabase, Zustand).
+- **`supabase/`** — DB migrations and Edge Functions.
 
 ## Commands
 
 ```bash
-npm install            # install dev dependencies (typescript, ts-node, @types/node)
+# Engine (root)
+npm install            # install dev dependencies
 npm run build          # compile to dist/
-npm test               # run test suite
+npm test               # run engine test suite (25 tests)
 npm run demo           # run feature demo
+
+# App (app/)
+cd app && npm install  # install app dependencies
+cd app && npx expo start          # start Metro dev server
+cd app && npx expo run:ios        # run on iOS simulator
+cd app && npx expo run:android    # run on Android emulator
+
+# Supabase (CLI installed at C:\Users\maxli\.local\bin\supabase.exe)
+# Set env first: export SUPABASE_ACCESS_TOKEN=<token>
+supabase db push                                                    # apply migrations to remote
+supabase gen types typescript --project-id epxifgorxaqlttawjcve > app/lib/database.types.ts
+supabase functions deploy send-daily-reminder --project-ref epxifgorxaqlttawjcve
+supabase migration list                                             # check migration status
 ```
+
+## Supabase Project
+- **Project ref**: `epxifgorxaqlttawjcve`
+- **URL**: `https://epxifgorxaqlttawjcve.supabase.co`
+- **Anon key**: in `app/.env` (gitignored)
 
 No linter or formatter is configured.
 
