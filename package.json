@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "test": "ts-node tests.ts",
-    "demo": "ts-node demo.ts"
+    "demo": "ts-node demo.ts",
+    "seed": "ts-node scripts/seed-puzzles.ts"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
